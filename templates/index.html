@@ -1,44 +1,149 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <title>Data Visualization</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="{{ url_for('static', filename='dist/css/tailwind.css') }}" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client/dist/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/animejs/lib/anime.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        button {
+            font-size: 1.2rem;
+            padding: 0.5rem;
+        }
+        .card-title {
+            font-size: 1rem;
+        }
+        .stat-value {
+            font-size: 2rem; /* Smaller font size */
+        }
+        canvas {
+            max-height: 200px; /* Smaller canvas height */
+        }
+    </style>
 </head>
-<body class="p-6">
-    <div class="container mx-auto">
-        <h1 class="text-3xl font-bold mb-4">Data Visualization</h1>
-        <div class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                <canvas id="myChart" class="w-full h-64"></canvas>
+<body class="p-4">
+<div class="container mx-auto p-4 space-y-8">
+    <!-- Current Temperature and Humidity Cards -->
+    <div class="grid grid-cols-2 gap-8">
+        <div class="card bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-2xl rounded-lg border border-purple-400 hover:scale-105 transition-transform duration-300 ease-in-out">
+            <div class="card-body items-center text-center space-y-4">
+                <div class="flex items-center justify-center space-x-2">
+                    <i class="fas fa-thermometer-half text-yellow-300 text-3xl"></i>
+                    <h2 class="card-title text-3xl font-extrabold">Current Temperature</h2>
+                </div>
+                <p id="current-temperature" class="text-6xl font-bold tracking-wide">-- °C</p>
+            </div>
+        </div>
+        <div class="card bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-2xl rounded-lg border border-teal-400 hover:scale-105 transition-transform duration-300 ease-in-out">
+            <div class="card-body items-center text-center space-y-4">
+                <div class="flex items-center justify-center space-x-2">
+                    <i class="fas fa-tint text-blue-300 text-3xl"></i>
+                    <h2 class="card-title text-3xl font-extrabold">Current Humidity</h2>
+                </div>
+                <p id="current-humidity" class="text-6xl font-bold tracking-wide">-- %</p>
             </div>
         </div>
     </div>
 
-    <script>
-        let ctx = document.getElementById('myChart').getContext('2d');
-        let myChart;
+    <!-- Daily Temperature and Humidity Range Cards -->
+    <div class="grid grid-cols-2 gap-8">
+        <div class="card bg-base-100 shadow-lg rounded-lg border border-blue-400 hover:shadow-xl transition-shadow duration-300 ease-in-out">
+            <div class="card-body items-center text-center space-y-2">
+                <div class="flex items-center justify-center space-x-2">
+                    <i class="fas fa-temperature-high text-blue-500 text-2xl"></i>
+                    <h2 class="card-title text-2xl font-semibold text-blue-700">Daily Temperature Range</h2>
+                </div>
+                <p id="temperature-range" class="text-4xl font-bold text-blue-800">-- °C</p>
+            </div>
+        </div>
+        <div class="card bg-base-100 shadow-lg rounded-lg border border-green-400 hover:shadow-xl transition-shadow duration-300 ease-in-out">
+            <div class="card-body items-center text-center space-y-2">
+                <div class="flex items-center justify-center space-x-2">
+                    <i class="fas fa-cloud-rain text-green-500 text-2xl"></i>
+                    <h2 class="card-title text-2xl font-semibold text-green-700">Daily Humidity Range</h2>
+                </div>
+                <p id="humidity-range" class="text-4xl font-bold text-green-800">-- %</p>
+            </div>
+        </div>
+    </div>
 
-        async function fetchDataAndUpdateChart() {
+    <!-- Separate Temperature and Humidity Charts -->
+    <div id="charts-container" class="grid grid-cols-2 gap-8">
+        <div class="card shadow-lg rounded-lg border border-blue-200 p-4 hover:shadow-2xl transition-shadow duration-300 ease-in-out">
+            <div class="card-body">
+                <canvas id="temperatureChart" class="w-full h-48"></canvas>
+            </div>
+        </div>
+        <div class="card shadow-lg rounded-lg border border-green-200 p-4 hover:shadow-2xl transition-shadow duration-300 ease-in-out">
+            <div class="card-body">
+                <canvas id="humidityChart" class="w-full h-48"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+    <script>
+        let temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
+        let humidityCtx = document.getElementById('humidityChart').getContext('2d');
+        let temperatureChart, humidityChart;
+
+        const notyf = new Notyf();
+        const socket = io();
+
+        let temperatureValues = [];
+        let humidityValues = [];
+        let labels = [];
+
+        async function fetchDataAndUpdateCharts(filterLastHour = false) {
             try {
                 const response = await fetch('/data');
                 const data = await response.json();
 
-                const labels = data.map(item => new Date(item.timestamp).toLocaleTimeString());
-                const values = data.map(item => item.value);
+                let temperatureData = data.temperature || [];
+                let humidityData = data.humidity || [];
 
-                if (!myChart) {
-                    myChart = new Chart(ctx, {
+                if (filterLastHour) {
+                    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                    temperatureData = temperatureData.filter(item => new Date(item.timestamp) >= oneHourAgo);
+                    humidityData = humidityData.filter(item => new Date(item.timestamp) >= oneHourAgo);
+                }
+
+                // Map data for the chart
+                labels = temperatureData.map(item => new Date(item.timestamp).toLocaleTimeString());
+                temperatureValues = temperatureData.map(item => parseFloat(item.value));
+                humidityValues = humidityData.map(item => parseFloat(item.value));
+
+                // Update current conditions
+                if (temperatureValues.length > 0) {
+                    document.getElementById('current-temperature').innerText = `${temperatureValues[temperatureValues.length - 1]} °C`;
+                    document.getElementById('temperature-range').innerText = `${Math.min(...temperatureValues)} - ${Math.max(...temperatureValues)} °C`;
+                }
+                if (humidityValues.length > 0) {
+                    document.getElementById('current-humidity').innerText = `${humidityValues[humidityValues.length - 1]} %`;
+                    document.getElementById('humidity-range').innerText = `${Math.min(...humidityValues)} - ${Math.max(...humidityValues)} %`;
+                }
+
+                // Initialize or update the temperature chart
+                if (!temperatureChart) {
+                    temperatureChart = new Chart(temperatureCtx, {
                         type: 'line',
                         data: {
                             labels: labels,
                             datasets: [{
-                                label: 'Received Data',
-                                data: values,
-                                backgroundColor: 'rgba(66, 165, 245, 0.2)',
-                                borderColor: 'rgba(66, 165, 245, 1)',
+                                label: 'Temperature (°C)',
+                                data: temperatureValues,
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                borderColor: 'rgba(255, 99, 132, 1)',
                                 borderWidth: 2,
                                 tension: 0.1,
                                 fill: true,
@@ -46,20 +151,78 @@
                         },
                         options: {
                             responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    callback: value => `${value}°C`
+                                }
+                            }
                         }
                     });
                 } else {
-                    myChart.data.labels = labels;
-                    myChart.data.datasets[0].data = values;
-                    myChart.update();
+                    temperatureChart.data.labels = labels;
+                    temperatureChart.data.datasets[0].data = temperatureValues;
+                    temperatureChart.update();
+                }
+
+                // Initialize or update the humidity chart
+                if (!humidityChart) {
+                    humidityChart = new Chart(humidityCtx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Humidity (%)',
+                                data: humidityValues,
+                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 2,
+                                tension: 0.1,
+                                fill: true,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    callback: value => `${value}%`
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    humidityChart.data.labels = labels;
+                    humidityChart.data.datasets[0].data = humidityValues;
+                    humidityChart.update();
+                }
+
+                // Notify user of the received data
+                if (temperatureValues.length > 0 && humidityValues.length > 0) {
+                    notyf.success(`Data received: Temperature - ${temperatureValues[temperatureValues.length - 1]}°C, Humidity - ${humidityValues[humidityValues.length - 1]}%`);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
+                notyf.error('Error fetching data');
             }
         }
 
-        setInterval(fetchDataAndUpdateChart, 5000);
-        fetchDataAndUpdateChart();
+
+        // Listen for real-time data updates via Socket.IO
+        socket.on('dataUpdate', (newData) => {
+            console.log('Real-time data update received:', newData);
+            fetchDataAndUpdateCharts();
+            anime({
+                targets: '.card',
+                scale: [1, 1.05, 1],
+                duration: 800,
+                easing: 'easeInOutQuad'
+            });
+        });
+
+        fetchDataAndUpdateCharts();
     </script>
 </body>
 </html>
