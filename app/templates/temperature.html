@@ -1,0 +1,144 @@
+<!-- app/templates/temperature.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature Monitoring</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        #temperatureChartContainer {
+            height: 300px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans antialiased p-8">
+
+    <header class="text-center py-8">
+        <h1 class="text-3xl font-bold">Temperature Monitoring</h1>
+        <p class="mt-2 text-gray-400">Monitor real-time temperature levels in your home.</p>
+    </header>
+
+    <main class="container mx-auto">
+        <div class="flex items-center justify-center space-x-4 mb-6">
+            <div class="text-center">
+                <p class="text-lg text-gray-400">Current Temperature</p>
+                <p id="current-temperature" class="text-6xl font-bold">-- °C</p>
+            </div>
+            <div class="text-center">
+                <p class="text-lg text-gray-400">Status</p>
+                <p id="temperature-status" class="text-3xl font-semibold">--</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6 mb-6">
+            <div class="p-4 bg-gray-700 rounded-lg text-center">
+                <p class="text-gray-400">Min Temperature (Today)</p>
+                <p id="min-temperature" class="text-4xl font-bold">-- °C</p>
+            </div>
+            <div class="p-4 bg-gray-700 rounded-lg text-center">
+                <p class="text-gray-400">Max Temperature (Today)</p>
+                <p id="max-temperature" class="text-4xl font-bold">-- °C</p>
+            </div>
+        </div>
+
+        <div id="temperatureChartContainer" class="bg-gray-700 rounded-lg p-4 mb-6 w-full">
+            <h2 class="text-xl font-semibold mb-4">Temperature Trend</h2>
+            <canvas id="temperatureChart" class="w-full"></canvas>
+        </div>
+
+        <div class="text-center mb-8">
+            <a href="/" class="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-200">
+                <i class="fas fa-home mr-2"></i> Home
+            </a>
+        </div>
+
+    </main>
+
+    <script>
+        const socket = io();
+        const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
+        let temperatureChart = new Chart(temperatureCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    data: [],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        },
+                        ticks: {
+                            callback: value => {
+                                const date = new Date(value);
+                                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: value => `${Math.round(value)}°C`
+                        },
+                        title: {
+                            display: true,
+                            text: 'Temperature (°C)'
+                        }
+                    }
+                }
+            }
+        });
+
+        async function fetchTemperatureData() {
+            const response = await fetch('/api/temperature_data');
+            const data = await response.json();
+            if (data && data.temperature) {
+                updateTemperatureData(data);
+            }
+        }
+
+        fetchTemperatureData();  // Fetch initial data on page load
+
+        function updateTemperatureData(data) {
+            // Update current, min, max, and status values in the UI
+            document.getElementById('current-temperature').innerText = data.temperature.current !== null ? `${Math.round(data.temperature.current)} °C` : '-- °C';
+            document.getElementById('min-temperature').innerText = data.temperature.min !== null ? `${Math.round(data.temperature.min)} °C` : '-- °C';
+            document.getElementById('max-temperature').innerText = data.temperature.max !== null ? `${Math.round(data.temperature.max)} °C` : '-- °C';
+            document.getElementById('temperature-status').innerText = data.temperature.status;
+
+            // Extract timestamps and temperature values from temperature history
+            const timestamps = data.temperature.history.map(record => {
+                const date = new Date(record.timestamp);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            });
+            const temperatures = data.temperature.history.map(record => Math.round(record.temperature));
+
+            // Update chart labels and data
+            temperatureChart.data.labels = timestamps;
+            temperatureChart.data.datasets[0].data = temperatures;
+            temperatureChart.update();
+        }
+
+        socket.on('sensor_update', (data) => {
+            if (data && data.temperature) {
+                updateTemperatureData(data);
+            }
+        });
+    </script>
+</body>
+</html>

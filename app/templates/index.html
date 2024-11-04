@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Hub - Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+
+            document.getElementById('hours').textContent = hours;
+            document.getElementById('minutes').textContent = minutes;
+            document.getElementById('seconds').textContent = seconds;
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock(); // Initial call to display clock immediately
+    </script>
+</head>
+<body class="bg-gray-900 text-white font-sans antialiased flex flex-col items-center min-h-screen">
+
+    <!-- Clock Section -->
+    <header class="text-center py-8 w-full flex justify-center">
+        <div id="clock" class="flex justify-center gap-4">
+            <!-- Hours Card -->
+            <div class="bg-gray-800 text-white rounded-xl p-8 w-64 h-80 flex flex-col items-center justify-between shadow-inner">
+                <span id="hours" class="text-9xl font-bold"></span>
+                <span class="text-2xl">Hours</span>
+            </div>
+            <!-- Minutes Card -->
+            <div class="bg-gray-800 text-white rounded-xl p-8 w-64 h-80 flex flex-col items-center justify-between shadow-inner">
+                <span id="minutes" class="text-9xl font-bold"></span>
+                <span class="text-2xl">Minutes</span>
+            </div>
+            <!-- Seconds Card -->
+            <div class="bg-gray-800 text-white rounded-xl p-8 w-64 h-80 flex flex-col items-center justify-between shadow-inner">
+                <span id="seconds" class="text-9xl font-bold"></span>
+                <span class="text-2xl">Seconds</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features Grid Section -->
+    <main class="container mx-auto p-8 flex justify-center">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <!-- Temperature Monitoring Feature -->
+            <a href="/temperature" class="block p-6 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition duration-200">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-thermometer-half text-yellow-300 text-4xl"></i>
+                    <div>
+                        <h2 class="text-2xl font-bold">Temperature Monitoring</h2>
+                        <p class="text-gray-400 mt-1">Monitor the temperature levels in different rooms in real-time.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Humidity Monitoring Feature -->
+            <a href="/humidity" class="block p-6 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition duration-200">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-tint text-blue-300 text-4xl"></i>
+                    <div>
+                        <h2 class="text-2xl font-bold">Humidity Monitoring</h2>
+                        <p class="text-gray-400 mt-1">Track humidity levels to maintain optimal comfort in your home.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Air Quality Feature -->
+            <a href="/pressure" class="block p-6 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition duration-200">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-wind text-green-300 text-4xl"></i>
+                    <div>
+                        <h2 class="text-2xl font-bold">Air Pressure Monitoring</h2>
+                        <p class="text-gray-400 mt-1">Get insights on air pressure to ensure a healthy indoor environment.</p>
+                    </div>
+                </div>
+            </a>
+
+        </div>
+    </main>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 Flask
 Flask-SQLAlchemy
-Flask-socketio
-eventlet
+Flask-SocketIO
 Werkzeug
+SQLAlchemy
