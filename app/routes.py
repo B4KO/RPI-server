@@ -5,6 +5,14 @@ from sqlalchemy import func
 from flask_socketio import SocketIO
 from datetime import datetime, date
 
+
+#TODO
+#Implement weather
+#Implement alarm
+#Implement calendar
+#Show the day of the week
+
+
 socketio = SocketIO()
 routes = Blueprint('routes', __name__)
 
