@@ -3,3 +3,4 @@ Flask-SQLAlchemy
 Flask-SocketIO
 Werkzeug
 SQLAlchemy
+requests

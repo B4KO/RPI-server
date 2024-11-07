@@ -18,14 +18,25 @@
             document.getElementById('seconds').textContent = seconds;
         }
 
+        function displayTodayDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const today = now.toLocaleDateString('en-US', options);
+            document.getElementById('today-date').textContent = today;
+        }
+
         setInterval(updateClock, 1000);
-        updateClock(); // Initial call to display clock immediately
+        window.addEventListener('load', () => {
+            updateClock(); // Initial call to display clock immediately
+            displayTodayDate(); // Call to display today's date on load
+        });
     </script>
 </head>
 <body class="bg-gray-900 text-white font-sans antialiased flex flex-col items-center min-h-screen">
 
-    <!-- Clock Section -->
-    <header class="text-center py-8 w-full flex justify-center">
+    <!-- Date and Clock Section -->
+    <header class="text-center py-8 w-full flex flex-col items-center">
+
         <div id="clock" class="flex justify-center gap-4">
             <!-- Hours Card -->
             <div class="bg-gray-800 text-white rounded-xl p-8 w-64 h-80 flex flex-col items-center justify-between shadow-inner">
@@ -43,7 +54,9 @@
                 <span class="text-2xl">Seconds</span>
             </div>
         </div>
+
     </header>
+    <div id="today-date" class="text-3xl mb-4 font-semibold"></div>
 
     <!-- Features Grid Section -->
     <main class="container mx-auto p-8 flex justify-center">
@@ -78,6 +91,39 @@
                     <div>
                         <h2 class="text-2xl font-bold">Air Pressure Monitoring</h2>
                         <p class="text-gray-400 mt-1">Get insights on air pressure to ensure a healthy indoor environment.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Weather Forecast Feature -->
+            <a href="/weather" class="block p-6 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition duration-200">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-sun text-orange-300 text-4xl"></i>
+                    <div>
+                        <h2 class="text-2xl font-bold">Weather Forecast</h2>
+                        <p class="text-gray-400 mt-1">Get insights on the weather forecast to prepare for the outside.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Calendar Feature -->
+            <a href="/calendar" class="block p-6 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition duration-200">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-calendar-alt text-purple-300 text-4xl"></i>
+                    <div>
+                        <h2 class="text-2xl font-bold">Calendar</h2>
+                        <p class="text-gray-400 mt-1">View upcoming events and stay organized with your schedule.</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Set Alarm Feature -->
+            <a href="/alarm" class="block p-6 bg-gray-800 rounded-lg shadow-lg hover:bg-gray-700 transition duration-200">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-bell text-red-300 text-4xl"></i>
+                    <div>
+                        <h2 class="text-2xl font-bold">Set Alarm</h2>
+                        <p class="text-gray-400 mt-1">Set up alarms to keep track of your important tasks and reminders.</p>
                     </div>
                 </div>
             </a>

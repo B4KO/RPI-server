@@ -1,24 +1,124 @@
 # app/routes.py
+import collections
+import threading
+
 from flask import Blueprint, request, render_template, jsonify
 from .models import db, Humidity, Temperature, Pressure
 from sqlalchemy import func
 from flask_socketio import SocketIO
-from datetime import datetime, date
+from datetime import datetime, date, time, timedelta, timezone
+from ics import Calendar
+import time
+import requests
+
 
 
 #TODO
-#Implement weather
 #Implement alarm
 #Implement calendar
-#Show the day of the week
 
 
 socketio = SocketIO()
 routes = Blueprint('routes', __name__)
 
+
+alarm_time = None
+WEATHER_API_KEY = 'e2e8c192678f006be42e65394b03204e'
+WEATHER_API_URL = 'http://api.openweathermap.org/data/2.5/onecall'
+
+
+def fetch_weather_data():
+    url = "https://api.openweathermap.org/data/3.0/onecall?lat=58.1467&lon=7.9956&exclude=minutely&appid=e2e8c192678f006be42e65394b03204e&units=metric"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        print(f"Error: Unable to fetch weather data. Status code {response.status_code}")
+        return {}, {}
+
+    data = response.json()
+
+    if "current" not in data or "daily" not in data:
+        print("Error: Missing expected data keys in the API response.")
+        return {}, {}
+
+    # Today's data
+    current = data["current"]
+    today_data = {
+        "today_temp": current.get("temp", "N/A"),
+        "today_desc": current.get("weather", [{"description": "N/A"}])[0]["description"].capitalize(),
+        "today_icon": f"fas fa-{map_icon(current['weather'][0]['icon'])}" if "weather" in current else "fas fa-cloud",
+        "humidity": current.get("humidity", "N/A"),
+        "wind_speed": current.get("wind_speed", "N/A"),
+        "sunrise": datetime.fromtimestamp(current.get("sunrise", 0)).strftime(
+            "%H:%M") if "sunrise" in current else "N/A",
+        "sunset": datetime.fromtimestamp(current.get("sunset", 0)).strftime("%H:%M") if "sunset" in current else "N/A",
+    }
+
+    # 7-day forecast data
+    forecast_data = {}
+    for day in data.get("daily", [])[:7]:  # Limit to 7 days
+        day_name = datetime.fromtimestamp(day["dt"]).strftime("%a")
+        forecast_data[day_name] = {
+            "temp": day["temp"].get("day", "N/A"),
+            "min_temp": day["temp"].get("min", "N/A"),
+            "max_temp": day["temp"].get("max", "N/A"),
+            "desc": day["weather"][0]["description"].capitalize() if "weather" in day else "N/A",
+            "icon": f"fas fa-{map_icon(day['weather'][0]['icon'])}" if "weather" in day else "fas fa-cloud",
+        }
+
+    return today_data, forecast_data
+
+
+def map_icon(icon_code):
+    icon_map = {
+        "01d": "sun", "01n": "moon",
+        "02d": "cloud-sun", "02n": "cloud-moon",
+        "03d": "cloud", "03n": "cloud",
+        "04d": "cloud-meatball", "04n": "cloud-meatball",
+        "09d": "cloud-showers-heavy", "09n": "cloud-showers-heavy",
+        "10d": "cloud-sun-rain", "10n": "cloud-moon-rain",
+        "11d": "bolt", "11n": "bolt",
+        "13d": "snowflake", "13n": "snowflake",
+        "50d": "smog", "50n": "smog",
+    }
+    return icon_map.get(icon_code, "cloud")
+
 @routes.route('/', methods=['GET'])
 def home():
     return render_template('index.html')
+
+# Path to the in-memory .ics file on the server
+ICS_FILE_PATH = 'calendar.ics'
+
+# Route to display the calendar events
+@routes.route('/calendar')
+def daily_calendar():
+    # Load the sample .ics file
+    with open("calendar.ics", "r") as f:
+        calendar = Calendar(f.read())
+
+    # Get today's date in UTC
+    today = datetime.now(timezone.utc).date()
+
+    # Filter events to include only today's events
+    today_events = []
+    for event in calendar.events:
+        event_start = event.begin.datetime.date()
+        if event_start == today:
+            today_events.append(event)
+
+    # Pass today's events to the template
+    return render_template("calendar.html", today_events=today_events, current_date=today)
+
+
+
+
+
+@routes.route('/weather', methods=['GET'])
+def weather():
+        today_data, forecast_data = fetch_weather_data()
+        return render_template('weather.html', **today_data, forecast=forecast_data)
+
 
 # Monitoring pages route
 @routes.route('/<sensor_type>', methods=['GET'])
@@ -75,6 +175,11 @@ def reset_data():
     except Exception as e:
         db.session.rollback()
         return jsonify({'status': 'Failed to reset data', 'error': str(e)}), 500
+
+
+@routes.route('/alarm', methods=['GET'])
+def alarm():
+    return render_template('alarm.html')
 
 # Helper function to add sensor records
 def add_sensor_records(data, timestamp=datetime.utcnow().isoformat()):
@@ -136,3 +241,29 @@ def emit_sensor_data():
         'temperature': temperature_data,
         'humidity': humidity_data,
     })
+
+@socketio.on('set_alarm')
+def handle_set_alarm(data):
+    global alarm_time
+    alarm_time = data.get("alarm_time")
+    print(f"Alarm set for {alarm_time}")
+
+    # Start a background thread to monitor the alarm time
+    def check_alarm():
+        global alarm_time
+        while alarm_time:
+            now = datetime.now().strftime("%H:%M")
+            if now == alarm_time:
+                socketio.emit('trigger_alarm', {'message': "Time's up! Your alarm is ringing!"})
+                alarm_time = None
+                break
+            time.sleep(1)
+
+    # Start background thread only if there's no alarm thread already running
+    threading.Thread(target=check_alarm).start()
+
+@socketio.on('clear_alarm')
+def handle_clear_alarm():
+    global alarm_time
+    alarm_time = None
+    print("Alarm cleared")
