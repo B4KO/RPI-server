@@ -1,13 +1,9 @@
 from flask import Flask
-from .routes import routes, socketio
+from .extensions import socketio  # Import socketio from extensions
+from .routes import routes
 
 def create_app():
     app = Flask(__name__)
-    
-    # Register the main routes blueprint
     app.register_blueprint(routes)
-    
-    # Initialize SocketIO with the app
-    socketio.init_app(app)
-    
+    socketio.init_app(app)  # Initialize socketio with the app
     return app

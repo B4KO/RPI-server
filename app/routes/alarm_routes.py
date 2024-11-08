@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from flask_socketio import emit
+from app.extensions import socketio  # Import socketio from extensions
 from ..services.alarm_service import set_alarm, clear_alarm
 
 alarm_routes = Blueprint('alarm_routes', __name__)
