@@ -1,7 +1,7 @@
 # app/errors.py
 from flask import Blueprint, jsonify
 
-errors = Blueprint('errors', __name__)
+error_routes = Blueprint('error_routes', __name__)
 
 @errors.app_errorhandler(404)
 def page_not_found(e):

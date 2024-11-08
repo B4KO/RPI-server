@@ -1,0 +1,1 @@
+from .icon_mapper import map_icon
