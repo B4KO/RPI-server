@@ -1,4 +1,4 @@
-# app/routes.py
+
 import collections
 import threading
 
@@ -13,14 +13,12 @@ import requests
 
 
 
-#TODO
-#Implement alarm
-#Implement calendar
 
 
 socketio = SocketIO()
 routes = Blueprint('routes', __name__)
 
+ICS_FILE_PATH = 'calendar.ics'
 
 alarm_time = None
 WEATHER_API_KEY = 'e2e8c192678f006be42e65394b03204e'
@@ -41,7 +39,7 @@ def fetch_weather_data():
         print("Error: Missing expected data keys in the API response.")
         return {}, {}
 
-    # Today's data
+    #Today data
     current = data["current"]
     today_data = {
         "today_temp": current.get("temp", "N/A"),
@@ -54,7 +52,7 @@ def fetch_weather_data():
         "sunset": datetime.fromtimestamp(current.get("sunset", 0)).strftime("%H:%M") if "sunset" in current else "N/A",
     }
 
-    # 7-day forecast data
+    #7-day forecast data
     forecast_data = {}
     for day in data.get("daily", [])[:7]:  # Limit to 7 days
         day_name = datetime.fromtimestamp(day["dt"]).strftime("%a")
@@ -87,8 +85,7 @@ def map_icon(icon_code):
 def home():
     return render_template('index.html')
 
-# Path to the in-memory .ics file on the server
-ICS_FILE_PATH = 'calendar.ics'
+
 
 # Route to display the calendar events
 @routes.route('/calendar')
@@ -119,8 +116,6 @@ def weather():
         today_data, forecast_data = fetch_weather_data()
         return render_template('weather.html', **today_data, forecast=forecast_data)
 
-
-# Monitoring pages route
 @routes.route('/<sensor_type>', methods=['GET'])
 def monitoring_page(sensor_type):
     templates = {
@@ -130,7 +125,6 @@ def monitoring_page(sensor_type):
     }
     return render_template(templates.get(sensor_type, 'index.html'))
 
-# API route to receive sensor data
 @routes.route('/api/sensor_data', methods=['POST'])
 def receive_sensor_data():
     data = request.json
@@ -143,11 +137,9 @@ def receive_sensor_data():
         db.session.rollback()
         return jsonify({'status': 'Failed to add data', 'error': str(e)}), 500
 
-    # Emit the latest sensor data to the client
     emit_sensor_data()
     return jsonify({'status': 'Data received and processed successfully'}), 200
 
-# API route to retrieve data for a specific sensor type
 @routes.route('/api/<sensor_type>_data', methods=['GET'])
 def get_sensor_data_api(sensor_type):
     models = {'pressure': Pressure, 'temperature': Temperature, 'humidity': Humidity}
